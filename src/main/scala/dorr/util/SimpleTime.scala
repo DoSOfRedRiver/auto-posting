@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.{ChronoField, TemporalAccessor}
 
 import cats.Order
+import cats.syntax.option._
 import cats.syntax.either._
 import io.circe.Decoder
 
@@ -12,13 +13,15 @@ sealed abstract case class SimpleTime(hour: Int, minute: Int) {
   def toLocalTime: LocalTime = LocalTime.of(hour, minute)
 }
 
+class HackToAvoidCirceShittyMacro(hour: Int, minute: Int) extends SimpleTime(hour, minute)
+
 object SimpleTime {
   val formatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("HH:mm")
 
   def simpleTime(hour: Int, minute: Int): Option[SimpleTime] = {
     if (hour <= 24 && minute <= 60 && hour >= 0 && minute >= 0)
-      Some(new SimpleTime(hour, minute) {})
+      new HackToAvoidCirceShittyMacro(hour, minute).some
     else None
   }
 
@@ -29,10 +32,10 @@ object SimpleTime {
   }
 
   def fromTemporal(temporal: TemporalAccessor): SimpleTime = {
-    new SimpleTime(
+    new HackToAvoidCirceShittyMacro(
       temporal.get(ChronoField.HOUR_OF_DAY),
       temporal.get(ChronoField.MINUTE_OF_HOUR)
-    ) {}
+    )
   }
 
   implicit val simpleTimeOrdering: Ordering[SimpleTime] = {
