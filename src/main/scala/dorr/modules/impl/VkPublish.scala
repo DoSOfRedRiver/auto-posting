@@ -1,18 +1,16 @@
 package dorr.modules.impl
 
-import java.time.{LocalDateTime, ZoneId, ZoneOffset}
-
 import cats.effect.Sync
 import cats.syntax.all._
 import com.vk.api.sdk.client.VkApiClient
-import com.vk.api.sdk.client.actors.{GroupActor, UserActor}
+import com.vk.api.sdk.client.actors.UserActor
 import dorr.Config
-import dorr.modules.dsl.{Message, Publish}
+import dorr.modules.dsl.{Message, Publish, Schedule}
 import logstage.LogIO
 
 import scala.jdk.CollectionConverters._
 
-class VkPublish[F[_]: Sync: LogIO](client: VkApiClient, conf: Config) extends Publish[F] {
+class VkPublish[F[_]: Sync: LogIO: Schedule](client: VkApiClient, conf: Config) extends Publish[F] {
 
   override def publish(msg: Message): F[Unit] = {
     for {
@@ -22,13 +20,9 @@ class VkPublish[F[_]: Sync: LogIO](client: VkApiClient, conf: Config) extends Pu
   }
 
   def publishMessage(msg: Message) = {
-    Sync[F].delay {
-      //TODO repalce with schedule
-      val date = LocalDateTime
-        .now()
-        .plusHours(1)
-        .toEpochSecond(conf.schedule.timezoneOffset).toInt
 
+    Schedule[F].nextDate.flatMap(date =>
+    Sync[F].delay {
       client.wall()
         .post(new UserActor(conf.app.id, conf.accessToken))
         .ownerId(-conf.group.id)
@@ -36,9 +30,10 @@ class VkPublish[F[_]: Sync: LogIO](client: VkApiClient, conf: Config) extends Pu
         .message(msg.text)
         .attachments(msg.attachments.asJava)
         .publishDate(
-          date
+          date.toEpochSecond(conf.schedule.timezoneOffset).toInt
         )
         .execute()
     }
+    )
   }
 }

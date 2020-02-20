@@ -15,7 +15,8 @@ val misc = Seq(
   "ru.tinkoff"      %%  "tofu"              % "0.6.3",
   "com.vk.api"      %   "sdk"               % "1.0.6",
   "org.rocksdb"     %   "rocksdbjni"        % "6.5.3",
-  "javax.mail" % "mail" % "1.4.7",
+
+  "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
 )
 
 val circe = Seq(

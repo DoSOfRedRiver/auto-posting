@@ -12,7 +12,8 @@ import dorr.Main.Program
 import dorr.modules.dsl.{Auth, Events, Publish}
 import dorr.modules.impl._
 import dorr.modules.impl.events.{VkApi, VkApiImpl, VkEvents}
-import dorr.util.modules
+import dorr.util.instances._
+import dorr.util.{Time, modules}
 import dorr.util.storage.RocksStorage.RocksGen
 import dorr.util.storage.{RocksStorage, Storage}
 import izumi.distage.config.{AppConfigModule, ConfigModuleDef}
@@ -49,9 +50,14 @@ class MainPlugin extends PluginDef {
     modules.Misc ++ modules.DIEffects ++ AppConfigModule(config) ++ ConfigModule ++ PublisherRole ++ Rocks
 
   def implementations[F[_]: TagK: ConcurrentEffect: LogIO: Timer] =
-    Program ++  Modules ++ MainFunctionalModule ++ Client ++ Http4s ++ Storage
+    Program ++  Modules ++ MainFunctionalModule ++ Client ++ Http4s ++ Storage ++ Instruments
 
   include(implementations[Task] ++ infrastructure[Task])
+
+
+  def Instruments[F[_]: TagK: Time] = new ModuleDef {
+    addImplicit[Time[F]]
+  }
 
 
   def Modules[F[_] : TagK : Sync] = new ModuleDef {

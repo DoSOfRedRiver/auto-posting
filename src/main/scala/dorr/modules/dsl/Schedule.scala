@@ -1,7 +1,9 @@
 package dorr.modules.dsl
 
+import java.time.LocalDateTime
+
 trait Schedule[F[_]] {
-  def nextDate: F[Long]
+  def nextDate: F[LocalDateTime]
 }
 
 object Schedule {
