@@ -16,7 +16,7 @@ class RocksStorage[F[_]: Sync](rocksDB: RocksDB) extends Storage[F, Array[Byte]]
   }
 
   def get(key: String): F[Option[Array[Byte]]] = {
-    Option(rocksDB.get(bytes(key))).pure[F]
+    Sync[F].delay(Option(rocksDB.get(bytes(key))))
   }
 }
 
