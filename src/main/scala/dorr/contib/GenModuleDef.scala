@@ -28,7 +28,6 @@ object GenModuleDef {
           GenModule[T].module(a.tail) ++ new ModuleDef {
             val v: V = select(a)
             val name = w.value.toString.substring(1)
-            println(s"@Witness: ${name}")
             make[V].named(name).from(v)
           }
       }

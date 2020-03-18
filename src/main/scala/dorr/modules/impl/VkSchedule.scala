@@ -48,7 +48,7 @@ class VkSchedule[F[_] : VkApi : Time : Monad](conf: Config) extends Schedule[F] 
 
   val days = GenContains[ScheduleState](_.days)
   val daysRemap = GenContains[ScheduleState](_.daysRemap)
-  val daysBeforeQueueing = conf.schedule.daysBeforeQueueing
+  val queueInDays = conf.schedule.queueInDays
 
   val postingPoints = conf.schedule.postingPoints
     .distinct
@@ -100,8 +100,8 @@ class VkSchedule[F[_] : VkApi : Time : Monad](conf: Config) extends Schedule[F] 
     }
 
     def oneSlot(c: Int): StateT[F, ScheduleState, LocalDateTime] = {
-      val postingPoint = points((c / daysBeforeQueueing) % points.size)
-      val dayDist = c % daysBeforeQueueing
+      val postingPoint = points((c / queueInDays) % points.size)
+      val dayDist = c % queueInDays
 
       for {
         dayToCheck    <- StateT.inspect[F, ScheduleState, Int](_.daysRemap(dayDist))
@@ -113,8 +113,8 @@ class VkSchedule[F[_] : VkApi : Time : Monad](conf: Config) extends Schedule[F] 
 
     val state = ScheduleState(
       days = occupiedDays,
-      nextDay = dayOfYear + daysBeforeQueueing,
-      daysRemap = IndexedSeq.range(dayOfYear, dayOfYear + daysBeforeQueueing)
+      nextDay = dayOfYear + queueInDays,
+      daysRemap = IndexedSeq.range(dayOfYear, dayOfYear + queueInDays)
     )
 
     (0 until slots).toList.traverse(_ => oneSlot(0)).runA(state)

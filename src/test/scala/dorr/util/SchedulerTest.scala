@@ -27,7 +27,7 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
 
   val schedule: Configuration.Schedule = Configuration.Schedule(
     postingPoints = List(slot1, slot2, slot3),
-    daysBeforeQueueing = 5,
+    queueInDays = 5,
     timezoneOffset = ZoneOffset.of("+03:00"),
     clashInterval = 60
   )
@@ -96,7 +96,6 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
       )
       for {
         dates <- schedule nextDates slots.size
-        _     = println(dates.mkString("\n"))
         _     <- assertTask(dates == slots)
       } yield ()
     }
