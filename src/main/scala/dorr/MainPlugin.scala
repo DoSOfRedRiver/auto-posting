@@ -27,6 +27,7 @@ import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.rocksdb.{Options, RocksDB}
 import Configuration.Config
+import izumi.distage.framework.services.ConfigLoader
 
 import scala.concurrent.ExecutionContext
 
@@ -38,7 +39,6 @@ object Authentication extends Axis {
 class MainPlugin extends PluginDef {
   implicit val sc = monix.execution.Scheduler.global
 
-  val config = ConfigFactory.defaultApplication()
   val logger = IzLogger()
 
   implicit val log = LogIO.fromLogger[Task](logger)
@@ -48,7 +48,7 @@ class MainPlugin extends PluginDef {
   }
 
   def infrastructure[F[_]: TagK: LogIO: ConcurrentEffect: Timer] =
-    modules.Misc ++ modules.DIEffects ++ AppConfigModule(config) ++ ConfigModule ++ PublisherRole ++ Rocks
+    modules.Misc ++ modules.DIEffects ++ ConfigModule ++ PublisherRole ++ Rocks
 
   def implementations[F[_]: TagK: ConcurrentEffect: LogIO: Timer] =
     Program ++  Modules ++ MainFunctionalModule ++ Client ++ Http4s ++ Storage ++ Instruments
