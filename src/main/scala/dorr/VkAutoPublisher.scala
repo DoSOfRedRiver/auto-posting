@@ -3,10 +3,10 @@ package dorr
 import cats.Monad
 import cats.instances.list._
 import cats.syntax.all._
-import dorr.modules.dsl.{Auth, Events, Message, Publish}
+import dorr.modules.dsl.{Auth, Events, Message, Publish, Schedule}
 import logstage._
 
-class VkAutoPublisher[F[_]: Monad: LogIO: Events: Publish: Auth] extends AutoPublish[F] {
+class VkAutoPublisher[F[_]: Monad: LogIO: Events: Publish: Auth: Schedule] extends AutoPublish[F] {
 
 
   def run: F[Unit] = {
@@ -20,7 +20,8 @@ class VkAutoPublisher[F[_]: Monad: LogIO: Events: Publish: Auth] extends AutoPub
         val mediaId = event.`object`.attachments.head.audio.id
         Message("New:", List(s"audio${ownerId}_${mediaId}"))
       }
-      _       <- messages.traverse(Publish[F].publish)
+      dates   <- Schedule[F].nextDates(messages.size)
+      _       <- (messages zip dates) traverse (Publish[F].publish _).tupled
     } yield ()
 
 

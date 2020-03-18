@@ -9,7 +9,7 @@ import com.vk.api.sdk.client.VkApiClient
 import com.vk.api.sdk.httpclient.HttpTransportClient
 import distage.{ModuleDef, TagK}
 import dorr.Main.Program
-import dorr.modules.dsl.{Auth, Events, Publish}
+import dorr.modules.dsl.{Auth, Events, Publish, Schedule}
 import dorr.modules.impl._
 import dorr.modules.impl.events.{VkApi, VkApiImpl, VkEvents}
 import dorr.util.instances._
@@ -26,6 +26,7 @@ import monix.eval.Task
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.rocksdb.{Options, RocksDB}
+import Configuration.Config
 
 import scala.concurrent.ExecutionContext
 
@@ -64,6 +65,7 @@ class MainPlugin extends PluginDef {
     make[Publish[F]].from[VkPublish[F]]
     make[Events[F]].from[VkEvents[F]]
     make[VkApi[F]].from[VkApiImpl[F]]
+    make[Schedule[F]].from[VkSchedule[F]]
 
     make[Auth[F]].tagged(Authentication.OAuth)
       .from[VkOAuth[F]]

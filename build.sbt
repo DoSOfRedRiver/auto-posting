@@ -4,7 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.13.1"
 
-val izumiVersion = "0.10.0"
+val izumiVersion = "0.10.1"
 val circeVersion = "0.12.2"
 val http4sVersion = "0.21.0-M6"
 
@@ -12,7 +12,8 @@ val misc = Seq(
   "org.typelevel"   %%  "simulacrum"        % "1.0.0",
   "com.propensive"  %%  "magnolia"          % "0.12.5",
   "com.chuusai"     %%  "shapeless"         % "2.3.3",
-  "ru.tinkoff"      %%  "tofu"              % "0.6.3",
+  "ru.tinkoff"      %%  "tofu"              % "0.7.3",
+  "ru.tinkoff"      %%  "tofu-optics-macro" % "0.7.3",
   "com.vk.api"      %   "sdk"               % "1.0.6",
   "org.rocksdb"     %   "rocksdbjni"        % "6.5.3",
 
@@ -35,6 +36,7 @@ val http4s = Seq(
 val izumi = Seq(
   "io.7mind.izumi"  %%  "distage-extension-config",
   "io.7mind.izumi"  %%  "distage-extension-plugins",
+  "io.7mind.izumi"  %%  "distage-testkit-scalatest",
   "io.7mind.izumi"  %%  "distage-framework",
   "io.7mind.izumi"  %%  "distage-core",
   "io.7mind.izumi"  %%  "logstage-adapter-slf4j",
