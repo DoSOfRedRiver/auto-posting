@@ -6,7 +6,7 @@ import com.vk.api.sdk.client.{VkApiClient, actors}
 import com.vk.api.sdk.client.actors.{GroupActor, ServiceActor, UserActor}
 import com.vk.api.sdk.objects.enums.WallFilter
 import com.vk.api.sdk.objects.wall.responses.GetResponse
-import dorr.Config
+import dorr.Configuration.Config
 
 class VkApiImpl[F[_]: Sync](client: VkApiClient, conf: Config) extends VkApi[F] {
   def longPollServer = Sync[F].delay {

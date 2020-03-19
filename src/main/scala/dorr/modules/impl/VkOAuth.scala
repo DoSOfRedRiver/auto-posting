@@ -8,7 +8,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.{Defer, Monad}
-import dorr.Config
+import dorr.Configuration.Config
 import dorr.modules.dsl.Auth
 import logstage.LogIO
 import org.http4s._

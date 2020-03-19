@@ -13,7 +13,7 @@ sealed abstract case class SimpleTime(hour: Int, minute: Int) {
   def toLocalTime: LocalTime = LocalTime.of(hour, minute)
 }
 
-class HackToAvoidCirceShittyMacro(hour: Int, minute: Int) extends SimpleTime(hour, minute)
+private class HackToAvoidCirceShittyMacro(hour: Int, minute: Int) extends SimpleTime(hour, minute)
 
 object SimpleTime {
   val formatter: DateTimeFormatter =
