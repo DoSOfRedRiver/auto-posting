@@ -1,6 +1,6 @@
-package dorr.util
+package dorr
 
-import java.time.{LocalDateTime, LocalTime, ZoneOffset}
+import java.time.{LocalDateTime, LocalTime}
 
 import cats.syntax.all._
 import com.vk.api.sdk.objects.wall.WallpostFull
@@ -9,7 +9,7 @@ import dorr.Configuration.Config
 import dorr.modules.dsl.Schedule
 import dorr.modules.impl.events.{LongPoll, VkApi}
 import dorr.testutils.TimeDummy
-import dorr.{Configuration, MainPlugin}
+import dorr.util.Time
 import izumi.distage.model.definition.ModuleDef
 import izumi.distage.plugins.PluginConfig
 import izumi.distage.testkit.TestConfig
@@ -21,19 +21,11 @@ import scala.jdk.CollectionConverters._
 class SchedulerTest extends DistageSpecScalatest[Task] {
   type Now = LocalDateTime
 
-  val slot1 = LocalTime.of(20, 0)
-  val slot2 = LocalTime.of(18, 0)
-  val slot3 = LocalTime.of(16, 0)
-
-  val schedule: Configuration.Schedule = Configuration.Schedule(
-    postingPoints = List(slot1, slot2, slot3),
-    queueInDays = 5,
-    timezoneOffset = ZoneOffset.of("+03:00"),
-    clashInterval = 60
-  )
-
   class VkApiDummy(config: Config, now: Now) extends VkApi[Task] {
     override def longPoll: Task[LongPoll[Task]] = ???
+
+    val slot1: LocalTime = config.schedule.postingPoints(0)
+    val slot2: LocalTime = config.schedule.postingPoints(1)
 
     val timepoints = List(
       now `with` slot1,
@@ -64,7 +56,6 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
   }
 
   val schedulerOverrides = new ModuleDef {
-    make[Config].from(Config(null, null, null, null, null, schedule))
     make[Now] from {
       LocalDateTime.of(1990, 1, 2, 0, 0)
     }
@@ -79,7 +70,11 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
 
   "Schedule" should {
 
-    "return correct slots when some of them occupied" in { (schedule: Schedule[Task], now: Now, vk: VkApi[Task]) =>
+    "return correct slots when some of them occupied" in { (schedule: Schedule[Task], now: Now, config: Config) =>
+      val slot1: LocalTime = config.schedule.postingPoints(0)
+      val slot2: LocalTime = config.schedule.postingPoints(1)
+      val slot3: LocalTime = config.schedule.postingPoints(2)
+
       val slots = List(
         now `with` slot1 plusDays 2,
         now `with` slot1 plusDays 3,
@@ -96,14 +91,14 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
       )
       for {
         dates <- schedule nextDates slots.size
-        _     <- assertTask(dates == slots)
+        _     =  assert(dates == slots)
       } yield ()
     }
 
     "return empty list when zero slots required" in { (schedule: Schedule[Task]) =>
       for {
         dates <- schedule nextDates 0
-        _     <- assertTask(dates == List.empty)
+        _     =  assert(dates == List.empty)
       } yield ()
     }
 
@@ -111,7 +106,7 @@ class SchedulerTest extends DistageSpecScalatest[Task] {
       val n = 500
       for {
         dates <- schedule nextDates n
-        _     <- assertTask(dates.distinct.length == n)
+        _     =  assert(dates.distinct.length == n)
       } yield ()
     }
   }

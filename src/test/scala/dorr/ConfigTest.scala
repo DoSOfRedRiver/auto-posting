@@ -1,9 +1,8 @@
-package dorr.util
+package dorr
 
 import java.time.LocalTime
 
 import dorr.Configuration.Config
-import dorr.MainPlugin
 import izumi.distage.plugins.PluginConfig
 import izumi.distage.testkit.TestConfig
 import izumi.distage.testkit.scalatest.DistageSpecScalatest
@@ -15,7 +14,7 @@ class ConfigTest extends DistageSpecScalatest[Task] {
   )
 
   "Config" should {
-    "load without an error" in { v: Config => assert(v.schedule.queueInDays == 5); println(v.schedule.queueInDays) }
+    "load without an error" in { _: Config =>  }
 
     "parse posting points correctly" in { (conf: Config) =>
       assert(
@@ -23,8 +22,6 @@ class ConfigTest extends DistageSpecScalatest[Task] {
           LocalTime.of(20, 0, 0, 0),
           LocalTime.of(18, 0, 0, 0),
           LocalTime.of(16, 0, 0, 0),
-          LocalTime.of(14, 0, 0, 0),
-          LocalTime.of(12, 0, 0, 0),
         )
       )
     }
