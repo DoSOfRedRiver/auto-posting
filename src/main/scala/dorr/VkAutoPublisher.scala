@@ -1,29 +1,43 @@
 package dorr
 
 import cats.Monad
+import cats.effect.Timer
 import cats.instances.list._
+import cats.instances.option._
 import cats.syntax.all._
-import dorr.modules.dsl.{Auth, Events, Message, Publish, Schedule}
+import dorr.Configuration.Config
+import dorr.modules.dsl._
 import logstage._
 
-class VkAutoPublisher[F[_]: Monad: LogIO: Events: Publish: Auth: Schedule] extends AutoPublish[F] {
+import scala.concurrent.duration._
 
+class VkAutoPublisher[F[_]: Monad: LogIO: Events: Publish: Schedule: Timer](conf: Config) extends AutoPublish[F] {
 
-  def run: F[Unit] = {
+  val tick = for {
+    events  <- Events[F].events
+    _       <- publishEvents(events)
+  } yield ()
 
+  def run: F[Unit] =
     for {
-      events  <- Events[F].events
+      _ <- LogIO[F].info("Next pull")
+      _ <- tick
+      _ <- Timer[F].sleep(conf.idlePeriod.seconds)
+      _ <- run
+    } yield ()
+
+  //TODO factor out?
+  def publishEvents(events: List[Event]): F[Unit] = {
+    for {
       _       <- LogIO[F].info(s"Events size: ${events.size}")
-      messages = events map { event =>
-        //TODO head
-        val ownerId = event.`object`.attachments.head.audio.ownerId
-        val mediaId = event.`object`.attachments.head.audio.id
-        Message("New:", List(s"audio${ownerId}_${mediaId}"))
-      }
+      messages = events.map(_.`object`.attachments
+        .headOption
+        .map(attachment =>
+          Message("New:", List(s"audio${attachment.audio.ownerId}_${attachment.audio.id}"))
+        )).unite
+
       dates   <- Schedule[F].nextDates(messages.size)
       _       <- (messages zip dates) traverse (Publish[F].publish _).tupled
     } yield ()
-
-
   }
 }
