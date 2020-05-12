@@ -4,9 +4,9 @@ version := "0.1"
 
 scalaVersion := "2.13.1"
 
-val izumiVersion = "0.10.1"
+val izumiVersion = "0.10.7"
 val circeVersion = "0.12.2"
-val http4sVersion = "0.21.0-M6"
+val typedSchemaVersion = "0.12.2"
 
 val misc = Seq(
   "org.typelevel"   %%  "simulacrum"        % "1.0.0",
@@ -20,18 +20,17 @@ val misc = Seq(
   "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
 )
 
+val typedSchema = List(
+  "ru.tinkoff" %% "typed-schema-finagle-env",
+  "ru.tinkoff" %% "typed-schema-finagle-custom",
+) map (_ % typedSchemaVersion)
+
 val circe = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser",
   "io.circe" %% "circe-generic-extras",
 ).map(_ % circeVersion)
-
-val http4s = Seq(
-  "org.http4s" %% "http4s-dsl",
-  "org.http4s" %% "http4s-blaze-server",
-  "org.http4s" %% "http4s-blaze-client",
-).map(_ % http4sVersion)
 
 val izumi = Seq(
   "io.7mind.izumi"  %%  "distage-extension-config",
@@ -43,7 +42,7 @@ val izumi = Seq(
   "io.7mind.izumi"  %%  "logstage-core",
 ).map(_ % izumiVersion)
 
-libraryDependencies ++= misc ++ circe ++ http4s ++ izumi
+libraryDependencies ++= misc ++ circe ++ izumi ++ typedSchema
 
 scalacOptions += "-Ymacro-annotations"
 

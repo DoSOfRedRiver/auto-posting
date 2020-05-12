@@ -1,11 +1,10 @@
 package dorr.util
 
-import cats.{Applicative, Defer, Functor, Monad}
-import cats.effect.{Bracket, ConcurrentEffect, Sync, Timer}
+import cats.{Applicative, Apply, Defer, Functor, Monad}
+import cats.effect.{Async, Bracket, ConcurrentEffect, Sync, Timer}
 import distage.{ModuleDef, TagK}
 import izumi.distage.model.effect.{DIEffect, DIEffectAsync, DIEffectRunner}
 import logstage.LogIO
-import org.http4s.EntityDecoder
 import tofu.Start
 import tofu.concurrent.TryableDeferreds
 
@@ -14,14 +13,15 @@ object modules {
     new ModuleDef {
       addImplicit[LogIO[F]]
       addImplicit[Monad[F]]
+      addImplicit[Apply[F]]
       addImplicit[Sync[F]]
+      addImplicit[Async[F]]
       addImplicit[Timer[F]]
       addImplicit[Defer[F]]
       addImplicit[Start[F]]
       addImplicit[Functor[F]]
       addImplicit[Applicative[F]]
       addImplicit[TryableDeferreds[F]]
-      addImplicit[EntityDecoder[F, String]]
       addImplicit[Bracket[F, Throwable]]
       addImplicit[ConcurrentEffect[F]]
     }
