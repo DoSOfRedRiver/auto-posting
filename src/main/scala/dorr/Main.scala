@@ -1,5 +1,6 @@
 package dorr
 
+import cats.Applicative
 import cats.effect.LiftIO
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -17,9 +18,9 @@ class RoleApp[F[_]: LiftIO: DIEffect: TagK] extends roles.RoleAppLauncher.Launch
 
 object Main extends RoleAppMain.Default(launcher = new RoleApp[Task]) {
 
-  class Program[F[_]: AutoPublish] {
+  class Program[F[_]: Applicative] {
 
     def run: F[Unit] =
-      AutoPublish[F].run
+      Applicative[F].unit
   }
 }

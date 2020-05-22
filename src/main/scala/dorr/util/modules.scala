@@ -5,7 +5,7 @@ import cats.effect.{Async, Bracket, ConcurrentEffect, Sync, Timer}
 import distage.{ModuleDef, TagK}
 import izumi.distage.model.effect.{DIEffect, DIEffectAsync, DIEffectRunner}
 import logstage.LogIO
-import tofu.Start
+import tofu.{Race, Start}
 import tofu.concurrent.TryableDeferreds
 
 object modules {
@@ -19,6 +19,7 @@ object modules {
       addImplicit[Timer[F]]
       addImplicit[Defer[F]]
       addImplicit[Start[F]]
+      addImplicit[Race[F]]
       addImplicit[Functor[F]]
       addImplicit[Applicative[F]]
       addImplicit[TryableDeferreds[F]]
