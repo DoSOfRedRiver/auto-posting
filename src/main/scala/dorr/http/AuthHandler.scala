@@ -4,7 +4,7 @@ import java.net.URI
 
 import cats.Monad
 import dorr.Configuration.Config
-import dorr.contrib.oAuthRedirect.RedirectParams
+import dorr.contrib.tschema.OAuthRedirect.RedirectParams
 import dorr.http.Routes.OAuth
 import dorr.modules.dsl.AuthProvider
 import logstage.LogIO

@@ -103,6 +103,8 @@ class MainPlugin extends PluginDef {
       override def apply[A](fa: H[A]): H[A] = fa
     }
 
+    make[SwaggerGen[H]]
+
     //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
     many[H[Response]].add { (auth: Authorization[Bearer, H, AuthData], uploadHandler: UploadHandler[F]) =>
       implicit val dumb = auth
@@ -118,6 +120,8 @@ class MainPlugin extends PluginDef {
         def status: F[String] = "Alive".pure[F]
       })
     }
+
+    many[H[Response]].add { (_: SwaggerGen[H]).route }
   }
 
   def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Sync, F[_]: TagK](
