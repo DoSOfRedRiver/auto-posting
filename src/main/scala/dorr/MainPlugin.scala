@@ -14,6 +14,8 @@ import com.vk.api.sdk.httpclient.HttpTransportClient
 import distage.{DIKey, ModuleDef, TagK}
 import dorr.Configuration.Config
 import dorr.Main.Program
+import dorr.http.AuthMeta.OAuth1
+import dorr.http.Routes.{From, To}
 import dorr.http._
 import dorr.initializers.{BackgroundProcess, HttpServerInit}
 import dorr.modules.dsl.{AuthProvider, Events, Publish, Schedule}
@@ -34,7 +36,7 @@ import logstage.LogIO
 import monix.eval.Task
 import org.rocksdb.{Options, RocksDB}
 import pureconfig.configurable._
-import ru.tinkoff.tschema.finagle.Authorization.Bearer
+import ru.tinkoff.tschema.finagle.Authorization.{OAuth2, Provide}
 import ru.tinkoff.tschema.finagle._
 import ru.tinkoff.tschema.finagle.envRouting.TaskRouting.TaskHttp
 import tofu.BracketThrow
@@ -42,6 +44,7 @@ import tofu.generate.{GenRandom, GenUUID}
 import tofu.lift.Lift
 import tofu.syntax.monadic._
 
+//TODO
 object Authentication extends Axis {
   case object ConfigAuth extends AxisValueDef
   case object OAuth extends AxisValueDef
@@ -106,7 +109,7 @@ class MainPlugin extends PluginDef {
     make[SwaggerGen[H]]
 
     //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
-    many[H[Response]].add { (auth: Authorization[Bearer, H, AuthData], uploadHandler: UploadHandler[F]) =>
+    many[H[Response]].add { (auth: OAuth1[H, AuthData], uploadHandler: UploadHandler[F]) =>
       implicit val dumb = auth
       MkService[H](Routes.upload)(uploadHandler)
     }
@@ -115,14 +118,39 @@ class MainPlugin extends PluginDef {
       MkService[H](Routes.auth)(authHandler)
     }
 
-    many[H[Response]].add { implicit auth: Authorization[Bearer, H, AuthData] =>
+    many[H[Response]].add { implicit auth: OAuth1[H, AuthData] =>
       MkService[H](Routes.status)(new {
         def status: F[String] = "Alive".pure[F]
       })
     }
 
     many[H[Response]].add { (_: SwaggerGen[H]).route }
+
+    implicit val provide = new Provide[H, From] {
+      override def provide: H[Option[From]] = {
+        Routed[H].request.map { req =>
+          Some(From(req.cookies("codeId").value.toLong, req.headerMap("Custom-Header")))
+        }
+      }
+    }
+
+    implicit val auth = new Authorization[OAuth2, H, To, From] {
+      override def apply(s: Option[From]): H[To] = s match {
+        case Some(from) if from.id == 0 =>
+          To(from.id, from.meta).pure[H]
+        case None =>
+          Routed[H].reject(Rejection.unauthorized)
+      }
+    }
+
+    many[H[Response]].add {
+      MkService[H](Routes.test)(new {
+        def test(paramName: To): F[String] =
+          paramName.username.pure[F]
+      })
+    }
   }
+
 
   def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Sync, F[_]: TagK](
     implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F], LF: Lift[Future, H]
@@ -140,7 +168,7 @@ class MainPlugin extends PluginDef {
     addImplicit[LogIO[H]]
     //TODO
 
-    make[Authorization[Bearer, H, AuthData]].from[DbAuthorization[H, F]]
+    make[OAuth1[H, AuthData]].from[DbAuthorization[H, F]]
 
     many[BackgroundProcess[F]].add[HttpServerInit[H, F]]
   }

@@ -6,7 +6,7 @@ scalaVersion := "2.13.1"
 
 val izumiVersion = "0.10.7"
 val circeVersion = "0.12.2"
-val typedSchemaVersion = "0.12.4"
+val typedSchemaVersion = "0.12.4-oauth-SNAPSHOT"
 val swaggerUIVersion = "3.26.0"
 
 val misc = Seq(
@@ -16,6 +16,7 @@ val misc = Seq(
   "ru.tinkoff"          %%  "tofu"              % "0.7.3",
   "ru.tinkoff"          %%  "tofu-optics-macro" % "0.7.3",
   "com.lihaoyi"         %%  "scalatags"         % "0.9.1",
+  "org.manatki"         %%  "derevo-circe"      % "0.11.4",
 
   "com.vk.api"          %   "sdk"               % "1.0.6",
   "org.rocksdb"         %   "rocksdbjni"        % "6.5.3",

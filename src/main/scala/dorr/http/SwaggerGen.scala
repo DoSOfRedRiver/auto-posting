@@ -29,8 +29,7 @@ class SwaggerGen[H[_]: RoutedPlus: Monad] {
 
   val resources = Scheduler.io()
 
-  //TODO add security
-  val routes = List(MkSwagger(auth), MkSwagger(upload), MkSwagger(status)).combineAll
+  val routes = List(/*MkSwagger(auth), MkSwagger(upload),*/ /*MkSwagger(status),*/ MkSwagger(test), MkSwagger(test1)).combineAll
   val descriptions =
     PathDescription.utf8I18n("swagger", Locale.forLanguageTag("ru"))
 
