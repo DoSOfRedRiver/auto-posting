@@ -9,7 +9,6 @@ import dorr.contrib.tschema.SwaggerIndex
 import io.circe.Printer
 import monix.eval.Task
 import monix.execution.Scheduler
-import ru.tinkoff.tschema.finagle.circeInstances._
 import ru.tinkoff.tschema.finagle.envRouting.{Rejected, TaskRouting}
 import ru.tinkoff.tschema.finagle.util.message
 import ru.tinkoff.tschema.finagle.{Rejection, Routed, RoutedPlus}
@@ -17,19 +16,18 @@ import ru.tinkoff.tschema.swagger.{MkSwagger, OpenApiInfo, PathDescription}
 import tofu.env.Env
 import tofu.syntax.monadic._
 
-class SwaggerGen[H[_]: RoutedPlus: Monad] {
-
+class SwaggerGen[H[_]: RoutedPlus: Monad](rts: Routes) {
+  import rts._
 
   implicit val printer: Printer = Printer.spaces2.copy(dropNullValues = true)
 
   import cats.instances.list._
   import cats.syntax.foldable._
-  import dorr.http.Routes._
   import io.circe.syntax._
 
   val resources = Scheduler.io()
 
-  val routes = List(/*MkSwagger(auth), MkSwagger(upload),*/ /*MkSwagger(status),*/ MkSwagger(test), MkSwagger(test1)).combineAll
+  val routes = List(MkSwagger(auth), MkSwagger(upload), MkSwagger(status)).combineAll
   val descriptions =
     PathDescription.utf8I18n("swagger", Locale.forLanguageTag("ru"))
 

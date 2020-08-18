@@ -5,7 +5,6 @@ import java.net.URI
 import cats.Monad
 import dorr.Configuration.Config
 import dorr.contrib.tschema.OAuthRedirect.RedirectParams
-import dorr.http.Routes.OAuth
 import dorr.modules.dsl.AuthProvider
 import logstage.LogIO
 import org.apache.http.client.utils.URIBuilder
@@ -21,7 +20,7 @@ class AuthHandler[F[_]: Monad: Routed: AuthProvider: GenRandom: LogIO](config: C
   //as well as it gives us more reliable security model
   def auth: F[RedirectParams] =
     GenRandom[F].nextLong map { seed =>
-      new URIBuilder(config.oauth.redirectAddr)
+      new URIBuilder(config.oauth.authorizationUrl)
         .addParameter("client_id", config.app.id.toString)
         .addParameter("redirect_uri", config.oauth.clbAddr)
         .addParameter("response_type", "code")
