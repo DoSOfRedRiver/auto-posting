@@ -1,5 +1,6 @@
 package dorr.util
 
+import org.apache.commons.lang3.SerializationUtils
 import simulacrum.{op, typeclass}
 
 @typeclass
@@ -17,5 +18,13 @@ object Bytes {
     override def from(bytes: Array[Byte]) = {
       new String(bytes, "UTF-8")
     }
+  }
+
+  def asSerializable[A <: Serializable]: Bytes[A] = new Bytes[A] {
+    override def to(a: A): Array[Byte] =
+      SerializationUtils.serialize(a)
+
+    override def from(bytes: Array[Byte]): A =
+      SerializationUtils.deserialize[A](bytes)
   }
 }

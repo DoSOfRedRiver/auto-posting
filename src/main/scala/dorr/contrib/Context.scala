@@ -1,4 +1,4 @@
-package dorr.contib
+package dorr.contrib
 
 import cats.Functor
 

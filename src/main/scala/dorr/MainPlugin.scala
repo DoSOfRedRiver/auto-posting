@@ -6,7 +6,7 @@ import cats.data.OptionT
 import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
 import cats.instances.list._
 import cats.syntax.foldable._
-import cats.{Applicative, Apply, Monad}
+import cats.{Applicative, Functor, Monad, MonadError}
 import com.twitter.finagle.http.Response
 import com.twitter.util.Future
 import com.vk.api.sdk.client.VkApiClient
@@ -14,15 +14,15 @@ import com.vk.api.sdk.httpclient.HttpTransportClient
 import distage.{DIKey, ModuleDef, TagK}
 import dorr.Configuration.Config
 import dorr.Main.Program
-import dorr.http.{Routes, UploadHandler}
+import dorr.http._
 import dorr.initializers.{BackgroundProcess, HttpServerInit}
-import dorr.modules.dsl.{Auth, Events, Publish, Schedule}
+import dorr.modules.dsl.{AuthProvider, Events, Publish, Schedule}
 import dorr.modules.impl._
 import dorr.modules.impl.events.{VkApi, VkApiImpl, VkEvents}
 import dorr.util.instances._
 import dorr.util.storage.RocksStorage.RocksGen
 import dorr.util.storage.{RocksStorage, Storage}
-import dorr.util.{File, Time, modules}
+import dorr.util.{Bytes, File, FinagleHttpClient, HttpClient, Time, modules}
 import izumi.distage.config.ConfigModuleDef
 import izumi.distage.config.codec.PureconfigAutoDerive
 import izumi.distage.constructors.ClassConstructor
@@ -34,9 +34,11 @@ import logstage.LogIO
 import monix.eval.Task
 import org.rocksdb.{Options, RocksDB}
 import pureconfig.configurable._
+import ru.tinkoff.tschema.finagle.Authorization.Bearer
+import ru.tinkoff.tschema.finagle._
 import ru.tinkoff.tschema.finagle.envRouting.TaskRouting.TaskHttp
-import ru.tinkoff.tschema.finagle.{LiftHttp, MkService, RoutedPlus, RunHttp}
 import tofu.BracketThrow
+import tofu.generate.{GenRandom, GenUUID}
 import tofu.lift.Lift
 import tofu.syntax.monadic._
 
@@ -51,6 +53,7 @@ class MainPlugin extends PluginDef {
   val logger = IzLogger()
 
   implicit val log = LogIO.fromLogger[Task](logger)
+  implicit val httpLog = LogIO.fromLogger[TaskHttp](logger)
 
 
   implicit val localDateConvert = localTimeConfigConvert(DateTimeFormatter.ISO_TIME)
@@ -66,57 +69,94 @@ class MainPlugin extends PluginDef {
     }
   }
 
+  implicit def liftCompose[F[_], G[_], H[_]](implicit
+    fg: Lift[F, G], gh: Lift[G, H]
+  ) = new Lift[F, H] {
+    override def lift[A](fa: F[A]): H[A] = gh.lift(fg.lift(fa))
+  }
+
+
   val backgroundProcessesKey = DIKey.get[Set[Unit]].named("background-tasks")
 
   def infrastructure[F[_]: TagK: LogIO: ConcurrentEffect: Timer] =
     modules.Misc ++ modules.DIEffects ++ ConfigModule ++ PublisherRole ++ Rocks ++ HttpServer[TaskHttp, Task]
 
   def implementations[F[_]: TagK: ConcurrentEffect: LogIO: Timer] =
-    Program ++ Modules ++ MainFunctionalModule ++ Client ++ Storage ++ Instruments ++ HttpHandlers ++ HttpRoutes[Task, TaskHttp]
+    Program ++ Modules[Task, TaskHttp] ++ MainFunctionalModule ++ Client ++ Storage ++ Storage[TaskHttp] ++ Instruments[Task, TaskHttp] ++ HttpHandlers[Task, TaskHttp] ++ HttpRoutes[Task, TaskHttp]
 
   include(implementations[Task] ++ infrastructure[Task])
 
 
-  def HttpHandlers[F[_]: TagK] = new ModuleDef {
+  def HttpHandlers[F[_]: TagK, H[_]: TagK] =
+    AddHandlers[F] ++ AddHandlers[H]
+
+
+  def AddHandlers[F[_]: TagK] = new ModuleDef {
     make[UploadHandler[F]]
+    make[AuthHandler[F]]
   }
 
-  def HttpRoutes[F[_]: Applicative: TagK, H[_]: TagK: Monad: LiftHttp[*[_], F]: RoutedPlus] = new ModuleDef {
+  def HttpRoutes[F[_]: Applicative: Sync: TagK, H[_]: TagK: MonadError[*[_], Throwable]: LiftHttp[*[_], F]: RoutedPlus: GenUUID] = new ModuleDef {
     import ru.tinkoff.tschema.finagle.circeInstances._
 
-    //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
-    many[H[Response]].add((uploadHandler: UploadHandler[F]) =>
-      MkService[H](Routes.upload)(uploadHandler)
-    )
+    implicit val liftId = new LiftHttp[H, H] {
+      override def apply[A](fa: H[A]): H[A] = fa
+    }
 
-    many[H[Response]].add(MkService[H](Routes.status)(new {
-      def status: F[String] = "Alive".pure[F]
-    }))
+    //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
+    many[H[Response]].add { (auth: Authorization[Bearer, H, AuthData], uploadHandler: UploadHandler[F]) =>
+      implicit val dumb = auth
+      MkService[H](Routes.upload)(uploadHandler)
+    }
+
+    many[H[Response]].add { authHandler: AuthHandler[H] =>
+      MkService[H](Routes.auth)(authHandler)
+    }
+
+    many[H[Response]].add { implicit auth: Authorization[Bearer, H, AuthData] =>
+      MkService[H](Routes.status)(new {
+        def status: F[String] = "Alive".pure[F]
+      })
+    }
   }
 
-  def HttpServer[H[_]: TagK: RoutedPlus: BracketThrow, F[_]: TagK](
-    implicit R: RunHttp[H, F], L: Lift[F, H]
+  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Sync, F[_]: TagK](
+    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F], LF: Lift[Future, H]
   ) = new ModuleDef {
+    addImplicit[Lift[Future, H]]
     addImplicit[Lift[F, H]]
+    addImplicit[LiftHttp[H, F]]
     addImplicit[RunHttp[H, F]]
     addImplicit[RoutedPlus[H]]
+    addImplicit[Routed[H]]
     addImplicit[BracketThrow[H]]
+    addImplicit[Sync[H]]
+    addImplicit[Monad[H]]
+    addImplicit[Functor[H]]
+    addImplicit[LogIO[H]]
+    //TODO
+
+    make[Authorization[Bearer, H, AuthData]].from[DbAuthorization[H, F]]
+
     many[BackgroundProcess[F]].add[HttpServerInit[H, F]]
   }
 
-  def Instruments[F[_]: TagK: Time: File] = new ModuleDef {
+  def Instruments[F[_]: TagK: Time: File: Sync, H[_]: TagK: GenUUID: Sync] = new ModuleDef {
     addImplicit[Time[F]]
     addImplicit[File[F]]
+    addImplicit[GenUUID[H]]
+    make[GenRandom[H]].fromEffect {
+      GenRandom.instance[F, H](secure = true)
+    }
+    make[HttpClient[H]].from[FinagleHttpClient[H]]
   }
 
-  def Modules[F[_] : TagK : Sync] = new ModuleDef {
+  def Modules[F[_] : TagK : Sync, H[_]: TagK] = new ModuleDef {
     make[Publish[F]].from[VkPublish[F]]
     make[Events[F]].from[VkEvents[F]]
     make[VkApi[F]].from[VkApiImpl[F]]
     make[Schedule[F]].from[VkSchedule[F]]
-
-    make[Auth[F]].tagged(Authentication.ConfigAuth)
-      .from[VkConfigAuth[F]]
+    make[AuthProvider[H]].from[VkAuthProvider[H]]
   }
 
   def Storage[F[_]: TagK: Sync] = new ModuleDef {
@@ -136,6 +176,20 @@ class MainPlugin extends PluginDef {
           override def get(key: String) =
             OptionT(store.get(key)).map(_.toInt).value
         }
+    }
+
+    make[Storage[F, AuthData]].from { implicit storage: Storage[F, Array[Byte]] =>
+      new Storage[F, AuthData] {
+        val serialize = Bytes.asSerializable[AuthData]
+
+        override def put(key: String, value: AuthData): F[Unit] =
+          Sync[F].delay(serialize.to(value)) >>= (storage.put(key, _))
+
+        override def get(key: String): F[Option[AuthData]] =
+          storage.get(key) >>= { mbBytes =>
+            Sync[F].delay(mbBytes.map(serialize.from))
+          }
+      }
     }
   }
 

@@ -1,7 +1,6 @@
-package dorr.contib
+package dorr.contrib
 
-import cats.Monad
-import tofu.{Context, HasContext}
+import tofu.Context
 
 object syntax {
   class ContextC[Has[_[_]]] {

@@ -9,13 +9,14 @@ val circeVersion = "0.12.2"
 val typedSchemaVersion = "0.12.2"
 
 val misc = Seq(
-  "org.typelevel"   %%  "simulacrum"        % "1.0.0",
-  "com.propensive"  %%  "magnolia"          % "0.12.5",
-  "com.chuusai"     %%  "shapeless"         % "2.3.3",
-  "ru.tinkoff"      %%  "tofu"              % "0.7.3",
-  "ru.tinkoff"      %%  "tofu-optics-macro" % "0.7.3",
-  "com.vk.api"      %   "sdk"               % "1.0.6",
-  "org.rocksdb"     %   "rocksdbjni"        % "6.5.3",
+  "org.typelevel"       %%  "simulacrum"        % "1.0.0",
+  "com.propensive"      %%  "magnolia"          % "0.12.5",
+  "com.chuusai"         %%  "shapeless"         % "2.3.3",
+  "ru.tinkoff"          %%  "tofu"              % "0.7.3",
+  "ru.tinkoff"          %%  "tofu-optics-macro" % "0.7.3",
+  "com.vk.api"          %   "sdk"               % "1.0.6",
+  "org.rocksdb"         %   "rocksdbjni"        % "6.5.3",
+  "org.apache.commons"  %   "commons-lang3"     % "3.10",
 
   "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
 )

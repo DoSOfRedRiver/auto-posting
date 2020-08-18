@@ -1,4 +1,4 @@
-package dorr.contib
+package dorr.contrib
 
 import izumi.distage.model.definition.{Module, ModuleDef}
 import izumi.fundamentals.reflection.Tags.Tag

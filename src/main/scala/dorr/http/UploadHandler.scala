@@ -2,7 +2,7 @@ package dorr.http
 
 import cats.Apply
 import dorr.Configuration.Config
-import dorr.contib.Mime
+import dorr.contrib.Mime
 import dorr.util.File
 import tofu.syntax.monadic._
 
