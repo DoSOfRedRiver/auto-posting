@@ -62,4 +62,5 @@ buildInfoKeys := Seq[BuildInfoKey](
   ("swaggerUIVersion", swaggerUIVersion)
 )
 
-mainClass := Some("dorr.Main")
+lazy val runServer = taskKey[Unit]("A custom run task.")
+fullRunTask(runServer, Runtime, "dorr.Main", Array("-u", ":publisher"): _*)
