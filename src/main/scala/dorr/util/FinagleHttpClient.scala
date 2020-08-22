@@ -1,9 +1,6 @@
 package dorr.util
 
-import java.net.http.{HttpClient => JavaClient}
-
 import cats.Functor
-import cats.effect.Sync
 import com.twitter.finagle.{Http, Service, http}
 import com.twitter.util.Future
 import dorr.contrib.tofu.Execute

@@ -6,7 +6,7 @@ scalaVersion := "2.13.1"
 
 val izumiVersion = "0.10.7"
 val circeVersion = "0.12.2"
-val typedSchemaVersion = "0.12.4-oauth-SNAPSHOT"
+val typedSchemaVersion = "0.12.5.1"
 val swaggerUIVersion = "3.26.0"
 
 val misc = Seq(
