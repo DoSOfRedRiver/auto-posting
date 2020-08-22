@@ -1,5 +1,6 @@
 package dorr.modules.impl
 
+import cats.syntax.monadError._
 import cats.{Functor, MonadError}
 import dorr.Configuration.Config
 import dorr.http.AuthData
@@ -47,7 +48,12 @@ class VkAuthProvider[F[_] : HttpClient : Functor : BracketThrow : GenUUID : Stor
     for {
       response  <- HttpClient[F].https("oauth.vk.com", "/access_token", params: _*)
       servToken <- GenUUID[F].randomUUID
-      authData  <- MonadError[F, Throwable].fromEither(responseToAuthData(response, servToken.toString))
+      authData  <- MonadError[F, Throwable]
+        .fromEither(responseToAuthData(response, servToken.toString))
+        .adaptError(new IllegalStateException(
+          "Could not parse IdP response, possibly bad configuration provided",
+          _
+        ))
     } yield authData
   }
 

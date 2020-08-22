@@ -1,11 +1,12 @@
-package dorr.contrib
+package dorr.contrib.tschema
 
 import cats.Monad
-import cats.instances.option._
-import cats.syntax.traverse._
 import com.twitter.io.Buf.ByteArray.Owned
 import ru.tinkoff.tschema.finagle.{ParseBody, Rejection, Routed}
+import ru.tinkoff.tschema.swagger.{SwaggerPrimitive, SwaggerTypeable}
 import tofu.syntax.monadic._
+import cats.syntax.traverse._
+import cats.instances.option._
 
 object Mime {
   case class AudioMpeg(bytes: Array[Byte])
@@ -32,5 +33,7 @@ object Mime {
               Routed.reject(Rejection.body("Invalid content type"))
           }
       }
+
+    implicit val swaggerTypable = SwaggerTypeable.make[Mime.AudioMpeg](SwaggerPrimitive.bin(Mime.AudioMpeg.contentType))
   }
 }

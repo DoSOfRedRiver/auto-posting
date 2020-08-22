@@ -3,7 +3,7 @@ package dorr
 import java.time.format.DateTimeFormatter
 
 import cats.data.OptionT
-import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
+import cats.effect.{Async, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.instances.list._
 import cats.syntax.foldable._
 import cats.{Applicative, Functor, Monad, MonadError}
@@ -14,7 +14,9 @@ import com.vk.api.sdk.httpclient.HttpTransportClient
 import distage.{DIKey, ModuleDef, TagK}
 import dorr.Configuration.Config
 import dorr.Main.Program
-import dorr.http._
+import dorr.contrib.tofu.Execute
+import dorr.http.AuthMeta.{FromProv, VkOAuth}
+import dorr.http.{From, To, _}
 import dorr.initializers.{BackgroundProcess, HttpServerInit}
 import dorr.modules.dsl.{AuthProvider, Events, Publish, Schedule}
 import dorr.modules.impl._
@@ -34,14 +36,17 @@ import logstage.LogIO
 import monix.eval.Task
 import org.rocksdb.{Options, RocksDB}
 import pureconfig.configurable._
-import ru.tinkoff.tschema.finagle.Authorization.Bearer
+import ru.tinkoff.tschema.finagle.Authorization.OAuth2
 import ru.tinkoff.tschema.finagle._
 import ru.tinkoff.tschema.finagle.envRouting.TaskRouting.TaskHttp
+import ru.tinkoff.tschema.swagger.{OAuthConfig, OpenApiFlow}
+import ru.tinkoff.tschema.utils.Provision
 import tofu.BracketThrow
 import tofu.generate.{GenRandom, GenUUID}
 import tofu.lift.Lift
 import tofu.syntax.monadic._
 
+//TODO
 object Authentication extends Axis {
   case object ConfigAuth extends AxisValueDef
   case object OAuth extends AxisValueDef
@@ -61,12 +66,6 @@ class MainPlugin extends PluginDef {
 
   implicit val diEffectRunner = new DIEffectRunner[Task] {
     override def run[A](f: => Task[A]) = f.runSyncUnsafe()
-  }
-
-  implicit val liftTwitterFutureToTask = new Lift[Future, Task] {
-    override def lift[A](fa: Future[A]): Task[A] = Task.async { clb =>
-      fa.respond(x => clb(x.asScala.toEither))
-    }
   }
 
   implicit def liftCompose[F[_], G[_], H[_]](implicit
@@ -103,27 +102,50 @@ class MainPlugin extends PluginDef {
       override def apply[A](fa: H[A]): H[A] = fa
     }
 
+    make[SwaggerGen[H]]
+    make[Routes]
+    make[OAuthConfig].from { cfg: Config =>
+      OAuthConfig("vkOAuth").flow {
+        OpenApiFlow.authorizationCode(
+          authorizationUrl = cfg.oauth.authorizationUrl,
+          tokenUrl = cfg.oauth.tokenUrl
+        )
+      }
+    }
+    make[Provision[H, From]].from { routed: Routed[H] =>
+      (() => Routed[H].request.map { req =>
+        //TODO
+        Some(From("bearer"))
+      }): Provision[H, From]
+    }
+
     //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
-    many[H[Response]].add { (auth: Authorization[Bearer, H, AuthData], uploadHandler: UploadHandler[F]) =>
+    //TODO bring routes into the scope?
+    many[H[Response]].add { (auth: VkOAuth[H], uh: UploadHandler[F], routes: Routes, prov: FromProv[H]) =>
       implicit val dumb = auth
-      MkService[H](Routes.upload)(uploadHandler)
+      implicit val dumb1  = prov
+      MkService[H](routes.upload)(uh)
     }
 
-    many[H[Response]].add { authHandler: AuthHandler[H] =>
-      MkService[H](Routes.auth)(authHandler)
+    many[H[Response]].add { (authHandler: AuthHandler[H], routes: Routes) =>
+      MkService[H](routes.auth)(authHandler)
     }
 
-    many[H[Response]].add { implicit auth: Authorization[Bearer, H, AuthData] =>
-      MkService[H](Routes.status)(new {
+    many[H[Response]].add { (auth: VkOAuth[H], routes: Routes, prov: FromProv[H]) =>
+      implicit val dumb = auth
+      implicit val dumb1  = prov
+      MkService[H](routes.status)(new {
         def status: F[String] = "Alive".pure[F]
       })
     }
+
+    many[H[Response]].add { (_: SwaggerGen[H]).route }
   }
 
-  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Sync, F[_]: TagK](
-    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F], LF: Lift[Future, H]
+
+  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Async: Lift[Task, *[_]]: ContextShift, F[_]: TagK](
+    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F]
   ) = new ModuleDef {
-    addImplicit[Lift[Future, H]]
     addImplicit[Lift[F, H]]
     addImplicit[LiftHttp[H, F]]
     addImplicit[RunHttp[H, F]]
@@ -135,8 +157,9 @@ class MainPlugin extends PluginDef {
     addImplicit[Functor[H]]
     addImplicit[LogIO[H]]
     //TODO
+    make[Execute[Future, H]].from { Execute.asyncExecuteTwitter[H] }
 
-    make[Authorization[Bearer, H, AuthData]].from[DbAuthorization[H, F]]
+    make[VkOAuth[H]].from[DbAuthorization[H, F]]
 
     many[BackgroundProcess[F]].add[HttpServerInit[H, F]]
   }
