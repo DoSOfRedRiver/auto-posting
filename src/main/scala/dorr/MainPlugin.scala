@@ -3,7 +3,7 @@ package dorr
 import java.time.format.DateTimeFormatter
 
 import cats.data.OptionT
-import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
+import cats.effect.{Async, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.instances.list._
 import cats.syntax.foldable._
 import cats.{Applicative, Functor, Monad, MonadError}
@@ -14,6 +14,7 @@ import com.vk.api.sdk.httpclient.HttpTransportClient
 import distage.{DIKey, ModuleDef, TagK}
 import dorr.Configuration.Config
 import dorr.Main.Program
+import dorr.contrib.tofu.Execute
 import dorr.http.AuthMeta.{FromProv, VkOAuth}
 import dorr.http.{From, To, _}
 import dorr.initializers.{BackgroundProcess, HttpServerInit}
@@ -65,12 +66,6 @@ class MainPlugin extends PluginDef {
 
   implicit val diEffectRunner = new DIEffectRunner[Task] {
     override def run[A](f: => Task[A]) = f.runSyncUnsafe()
-  }
-
-  implicit val liftTwitterFutureToTask = new Lift[Future, Task] {
-    override def lift[A](fa: Future[A]): Task[A] = Task.async { clb =>
-      fa.respond(x => clb(x.asScala.toEither))
-    }
   }
 
   implicit def liftCompose[F[_], G[_], H[_]](implicit
@@ -148,10 +143,9 @@ class MainPlugin extends PluginDef {
   }
 
 
-  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Sync, F[_]: TagK](
-    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F], LF: Lift[Future, H]
+  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Async: Lift[Task, *[_]]: ContextShift, F[_]: TagK](
+    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F]
   ) = new ModuleDef {
-    addImplicit[Lift[Future, H]]
     addImplicit[Lift[F, H]]
     addImplicit[LiftHttp[H, F]]
     addImplicit[RunHttp[H, F]]
@@ -163,6 +157,7 @@ class MainPlugin extends PluginDef {
     addImplicit[Functor[H]]
     addImplicit[LogIO[H]]
     //TODO
+    make[Execute[Future, H]].from { Execute.asyncExecuteTwitter[H] }
 
     make[VkOAuth[H]].from[DbAuthorization[H, F]]
 

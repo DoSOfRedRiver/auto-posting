@@ -1,14 +1,17 @@
 package dorr.util
 
+import java.net.http.{HttpClient => JavaClient}
+
 import cats.Functor
+import cats.effect.Sync
 import com.twitter.finagle.{Http, Service, http}
 import com.twitter.util.Future
-import tofu.lift.Lift
+import dorr.contrib.tofu.Execute
 import tofu.syntax.monadic._
 
-class FinagleHttpClient[F[_]: Lift[Future, *[_]]: Functor] extends HttpClient[F] {
+class FinagleHttpClient[F[_]: Functor](exec: Execute[Future, F]) extends HttpClient[F] {
   override def https(host: String, path: String, params: (String, String)*): F[String] = {
-    Lift[Future, F].lift {
+    exec.deferExecuteAction {
       val service: Service[http.Request, http.Response] =
         Http.client.withTransport
           .tls(host)
