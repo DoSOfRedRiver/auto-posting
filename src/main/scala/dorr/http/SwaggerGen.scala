@@ -5,14 +5,13 @@ import java.util.Locale
 import cats.Monad
 import cats.syntax.semigroupk._
 import com.twitter.finagle.http.Response
-import dorr.contrib.tschema.SwaggerIndex
 import io.circe.Printer
 import monix.eval.Task
 import monix.execution.Scheduler
 import ru.tinkoff.tschema.finagle.envRouting.{Rejected, TaskRouting}
 import ru.tinkoff.tschema.finagle.util.message
 import ru.tinkoff.tschema.finagle.{Rejection, Routed, RoutedPlus}
-import ru.tinkoff.tschema.swagger.{MkSwagger, OpenApiInfo, PathDescription}
+import ru.tinkoff.tschema.swagger.{MkSwagger, OpenApiInfo, PathDescription, SwaggerIndex}
 import tofu.env.Env
 import tofu.syntax.monadic._
 
@@ -39,7 +38,8 @@ class SwaggerGen[H[_]: RoutedPlus: Monad](rts: Routes) {
     Routed.checkPath[H, Response]("/swagger.json", response.pure[H])
 
   val swaggerHttp: H[Response] = {
-    val response = message.stringResponse(SwaggerIndex.index.render)
+
+    val response = message.stringResponse(SwaggerIndex("/swagger.json", "/webjars"))
     response.setContentType("text/html(UTF-8)")
     Routed.checkPath[H, Response]("/swagger", response.pure[H])
   }

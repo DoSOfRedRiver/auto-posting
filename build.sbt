@@ -7,7 +7,6 @@ scalaVersion := "2.13.1"
 val izumiVersion = "0.10.7"
 val circeVersion = "0.12.2"
 val typedSchemaVersion = "0.12.5.1"
-val swaggerUIVersion = "3.26.0"
 
 val misc = Seq(
   "org.typelevel"       %%  "simulacrum"        % "1.0.0",
@@ -22,13 +21,12 @@ val misc = Seq(
   "org.rocksdb"         %   "rocksdbjni"        % "6.5.3",
   "org.apache.commons"  %   "commons-lang3"     % "3.10",
 
-  "org.webjars.npm"     %   "swagger-ui-dist"   % swaggerUIVersion,
-
   "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
 )
 
 val typedSchema = List(
   "ru.tinkoff" %% "typed-schema-swagger",
+  "ru.tinkoff" %% "typed-schema-swagger-ui",
   "ru.tinkoff" %% "typed-schema-finagle-env",
   "ru.tinkoff" %% "typed-schema-finagle-custom",
 ) map (_ % typedSchemaVersion)
@@ -55,12 +53,6 @@ libraryDependencies ++= misc ++ circe ++ izumi ++ typedSchema
 scalacOptions += "-Ymacro-annotations"
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
-
-enablePlugins(BuildInfoPlugin)
-
-buildInfoKeys := Seq[BuildInfoKey](
-  ("swaggerUIVersion", swaggerUIVersion)
-)
 
 lazy val runServer = taskKey[Unit]("A custom run task.")
 fullRunTask(runServer, Runtime, "dorr.Main", Array("-u", ":publisher"): _*)
