@@ -14,7 +14,6 @@ val misc = Seq(
   "com.chuusai"         %%  "shapeless"         % "2.3.3",
   "ru.tinkoff"          %%  "tofu"              % "0.7.3",
   "ru.tinkoff"          %%  "tofu-optics-macro" % "0.7.3",
-  "com.lihaoyi"         %%  "scalatags"         % "0.9.1",
   "org.manatki"         %%  "derevo-circe"      % "0.11.4",
 
   "com.vk.api"          %   "sdk"               % "1.0.6",
