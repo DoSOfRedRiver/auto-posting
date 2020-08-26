@@ -15,16 +15,18 @@ import distage.{DIKey, ModuleDef, TagK}
 import dorr.Configuration.Config
 import dorr.Main.Program
 import dorr.contrib.tofu.Execute
-import dorr.http.AuthMeta.{FromProv, VkOAuth}
-import dorr.http.{From, To, _}
+import dorr.http._
 import dorr.initializers.{BackgroundProcess, HttpServerInit}
-import dorr.modules.dsl.{AuthProvider, Events, Publish, Schedule}
+import dorr.modules.AuthMeta.{FromProv, VkOAuth}
+import dorr.modules.defs.{IdData, SessionData}
+import dorr.modules.dsl.{AuthManager, Events, IdProvider, Publish, Schedule}
 import dorr.modules.impl._
 import dorr.modules.impl.events.{VkApi, VkApiImpl, VkEvents}
+import dorr.modules.{DbAuthorization, OAuthProvision}
 import dorr.util.instances._
 import dorr.util.storage.RocksStorage.RocksGen
 import dorr.util.storage.{RocksStorage, Storage}
-import dorr.util.{Bytes, File, FinagleHttpClient, HttpClient, Time, modules}
+import dorr.util.{Bytes, Crypto, File, FinagleHttpClient, HttpClient, Time, modules}
 import izumi.distage.config.ConfigModuleDef
 import izumi.distage.config.codec.PureconfigAutoDerive
 import izumi.distage.constructors.ClassConstructor
@@ -36,7 +38,6 @@ import logstage.LogIO
 import monix.eval.Task
 import org.rocksdb.{Options, RocksDB}
 import pureconfig.configurable._
-import ru.tinkoff.tschema.finagle.Authorization.OAuth2
 import ru.tinkoff.tschema.finagle._
 import ru.tinkoff.tschema.finagle.envRouting.TaskRouting.TaskHttp
 import ru.tinkoff.tschema.swagger.{OAuthConfig, OpenApiFlow}
@@ -45,6 +46,7 @@ import tofu.BracketThrow
 import tofu.generate.{GenRandom, GenUUID}
 import tofu.lift.Lift
 import tofu.syntax.monadic._
+import tsec.mac.jca.HMACSHA256
 
 //TODO
 object Authentication extends Axis {
@@ -81,21 +83,17 @@ class MainPlugin extends PluginDef {
     modules.Misc ++ modules.DIEffects ++ ConfigModule ++ PublisherRole ++ Rocks ++ HttpServer[TaskHttp, Task]
 
   def implementations[F[_]: TagK: ConcurrentEffect: LogIO: Timer] =
-    Program ++ Modules[Task, TaskHttp] ++ MainFunctionalModule ++ Client ++ Storage ++ Storage[TaskHttp] ++ Instruments[Task, TaskHttp] ++ HttpHandlers[Task, TaskHttp] ++ HttpRoutes[Task, TaskHttp]
+    Program ++ Modules[Task, TaskHttp] ++ Client ++ Storage ++ Storage[TaskHttp] ++ Instruments[Task, TaskHttp] ++ HttpHandlers[Task, TaskHttp] ++ HttpRoutes[Task, TaskHttp]
 
   include(implementations[Task] ++ infrastructure[Task])
 
 
-  def HttpHandlers[F[_]: TagK, H[_]: TagK] =
-    AddHandlers[F] ++ AddHandlers[H]
-
-
-  def AddHandlers[F[_]: TagK] = new ModuleDef {
+  def HttpHandlers[F[_]: TagK, H[_]: TagK] = new ModuleDef {
     make[UploadHandler[F]]
-    make[AuthHandler[F]]
+    make[AuthHandler[H, F]]
   }
 
-  def HttpRoutes[F[_]: Applicative: Sync: TagK, H[_]: TagK: MonadError[*[_], Throwable]: LiftHttp[*[_], F]: RoutedPlus: GenUUID] = new ModuleDef {
+  def HttpRoutes[F[_]: Applicative: Sync: TagK, H[_]: TagK: MonadError[*[_], Throwable]: LiftHttp[*[_], F]: RoutedPlus] = new ModuleDef {
     import ru.tinkoff.tschema.finagle.circeInstances._
 
     implicit val liftId = new LiftHttp[H, H] {
@@ -112,12 +110,7 @@ class MainPlugin extends PluginDef {
         )
       }
     }
-    make[Provision[H, From]].from { routed: Routed[H] =>
-      (() => Routed[H].request.map { req =>
-        //TODO
-        Some(From("bearer"))
-      }): Provision[H, From]
-    }
+    make[Provision[H, SessionData]].from[OAuthProvision[H]]
 
     //DOES NOT COMPILE WITHOUT MONAD INSTANCE FOR H
     //TODO bring routes into the scope?
@@ -127,7 +120,7 @@ class MainPlugin extends PluginDef {
       MkService[H](routes.upload)(uh)
     }
 
-    many[H[Response]].add { (authHandler: AuthHandler[H], routes: Routes) =>
+    many[H[Response]].add { (authHandler: AuthHandler[H, F], routes: Routes) =>
       MkService[H](routes.auth)(authHandler)
     }
 
@@ -143,8 +136,8 @@ class MainPlugin extends PluginDef {
   }
 
 
-  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Async: Lift[Task, *[_]]: ContextShift, F[_]: TagK](
-    implicit R: RunHttp[H, F], L: Lift[F, H], LH: LiftHttp[H, F]
+  def HttpServer[H[_]: TagK: RoutedPlus: LogIO: Async: Lift[Task, *[_]], F[_]: TagK: Async: ContextShift](
+    implicit R: RunHttp[H, F], L: Lift[F, H], Lift: LiftHttp[H, F]
   ) = new ModuleDef {
     addImplicit[Lift[F, H]]
     addImplicit[LiftHttp[H, F]]
@@ -157,7 +150,7 @@ class MainPlugin extends PluginDef {
     addImplicit[Functor[H]]
     addImplicit[LogIO[H]]
     //TODO
-    make[Execute[Future, H]].from { Execute.asyncExecuteTwitter[H] }
+    make[Execute[Future, F]].from { Execute.asyncExecuteTwitter[F] }
 
     make[VkOAuth[H]].from[DbAuthorization[H, F]]
 
@@ -167,11 +160,12 @@ class MainPlugin extends PluginDef {
   def Instruments[F[_]: TagK: Time: File: Sync, H[_]: TagK: GenUUID: Sync] = new ModuleDef {
     addImplicit[Time[F]]
     addImplicit[File[F]]
-    addImplicit[GenUUID[H]]
-    make[GenRandom[H]].fromEffect {
-      GenRandom.instance[F, H](secure = true)
+    addImplicit[GenUUID[F]]
+    make[Crypto[F]].from(Crypto.tsecSyncCrypto[F])
+    make[GenRandom[F]].fromEffect {
+      GenRandom.instance[F, F](secure = true)
     }
-    make[HttpClient[H]].from[FinagleHttpClient[H]]
+    make[HttpClient[F]].from[FinagleHttpClient[F]]
   }
 
   def Modules[F[_] : TagK : Sync, H[_]: TagK] = new ModuleDef {
@@ -179,7 +173,8 @@ class MainPlugin extends PluginDef {
     make[Events[F]].from[VkEvents[F]]
     make[VkApi[F]].from[VkApiImpl[F]]
     make[Schedule[F]].from[VkSchedule[F]]
-    make[AuthProvider[H]].from[VkAuthProvider[H]]
+    make[IdProvider[F]].from[VkIdProvider[F]]
+    make[AuthManager[F]].from[GohAuthManager[F]]
   }
 
   def Storage[F[_]: TagK: Sync] = new ModuleDef {
@@ -201,23 +196,19 @@ class MainPlugin extends PluginDef {
         }
     }
 
-    make[Storage[F, AuthData]].from { implicit storage: Storage[F, Array[Byte]] =>
-      new Storage[F, AuthData] {
-        val serialize = Bytes.asSerializable[AuthData]
+    make[Storage[F, IdData]].from { implicit storage: Storage[F, Array[Byte]] =>
+      new Storage[F, IdData] {
+        val serialize = Bytes.asSerializable[IdData]
 
-        override def put(key: String, value: AuthData): F[Unit] =
+        override def put(key: String, value: IdData): F[Unit] =
           Sync[F].delay(serialize.to(value)) >>= (storage.put(key, _))
 
-        override def get(key: String): F[Option[AuthData]] =
+        override def get(key: String): F[Option[IdData]] =
           storage.get(key) >>= { mbBytes =>
             Sync[F].delay(mbBytes.map(serialize.from))
           }
       }
     }
-  }
-
-  def MainFunctionalModule[F[_] : TagK] = new ModuleDef {
-    make[AutoPublish[F]].from[VkAutoPublisher[F]]
   }
 
   def Program[F[_]: TagK: Applicative] = new ModuleDef {
@@ -252,8 +243,10 @@ class MainPlugin extends PluginDef {
     )
   }
 
-  def ConfigModule = new ConfigModuleDef {
+  def ConfigModule[F[_]: Sync: TagK] = new ConfigModuleDef {
     makeConfig[Config]("conf")
+    import tsec.mac.jca
+    make[Crypto[F]#Key].fromEffect(HMACSHA256.generateKey[F]) //TODO load key
   }
 
   def PublisherRole[F[_]: TagK] = new ModuleDef {

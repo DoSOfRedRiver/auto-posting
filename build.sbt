@@ -4,6 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.13.1"
 
+val tsecVersion = "0.2.1"
 val izumiVersion = "0.10.7"
 val circeVersion = "0.12.2"
 val typedSchemaVersion = "0.12.5.1"
@@ -47,11 +48,18 @@ val izumi = Seq(
   "io.7mind.izumi"  %%  "logstage-core",
 ).map(_ % izumiVersion)
 
-libraryDependencies ++= misc ++ circe ++ izumi ++ typedSchema
+val tsec = Seq(
+  "io.github.jmcardon" %% "tsec-common" % tsecVersion,
+  "io.github.jmcardon" %% "tsec-mac" % tsecVersion,
+)
+
+libraryDependencies ++= misc ++ circe ++ izumi ++ typedSchema ++ tsec
 
 scalacOptions += "-Ymacro-annotations"
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+
 
 lazy val runServer = taskKey[Unit]("A custom run task.")
 fullRunTask(runServer, Runtime, "dorr.Main", Array("-u", ":publisher"): _*)
