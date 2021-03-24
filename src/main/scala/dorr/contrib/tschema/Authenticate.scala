@@ -1,18 +1,19 @@
 package dorr.contrib.tschema
 
 import cats.Functor
+import com.twitter.finagle.http.cookie.SameSite
 import com.twitter.finagle.http.{Cookie, Response}
 import dorr.contrib.tschema.Redirect.status
 import dorr.modules.defs.SessionData
 import ru.tinkoff.tschema.finagle.{Completing, LiftHttp}
-import ru.tinkoff.tschema.swagger.MkSwagger
+import ru.tinkoff.tschema.swagger.{MkSwagger, SwaggerPrimitive}
 import ru.tinkoff.tschema.typeDSL.Complete
 import tofu.syntax.monadic._
+import com.twitter.conversions.DurationOps._
 
 class Authenticate
 
 object Authenticate {
-  val csrfBearer = "csrf_token"
   val sessionId = "session_id"
 
   implicit def authenticate[H[_], F[_] : Functor](
@@ -21,18 +22,23 @@ object Authenticate {
     Lift(arg map { sessionData =>
       val response = Response(status)
 
-      response.addCookie(
-        new Cookie(csrfBearer, sessionData.csrfMac)
+      val session = new Cookie(
+        sessionId,
+        sessionData.sessionId,
+        sameSite = SameSite.Lax,
+        httpOnly = true,
+        maxAge = Some(30.days)
       )
 
-      response.addCookie(
-        new Cookie(sessionId, sessionData.sessionId)
-      )
+      response.addCookie(session)
+      response.contentString = sessionData.csrfToken
 
       response
     })
   }
 
   implicit val swaggerResult: MkSwagger[Complete[Authenticate]] =
-    MkSwagger.empty //TODO
+    MkSwagger.summon[Complete[String]]
+      .addDescribedResponse(200, SwaggerPrimitive.string.withMediaType("text/plain"))
+      .as[Complete[Authenticate]]
 }

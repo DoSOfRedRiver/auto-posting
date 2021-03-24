@@ -2,6 +2,7 @@ package dorr.util
 
 import org.apache.commons.lang3.SerializationUtils
 import simulacrum.{op, typeclass}
+import java.nio.ByteBuffer
 
 @typeclass
 trait Bytes[A] {
@@ -18,6 +19,14 @@ object Bytes {
     override def from(bytes: Array[Byte]) = {
       new String(bytes, "UTF-8")
     }
+  }
+
+  implicit val intBytes: Bytes[Int] = new Bytes[Int] {
+    override def to(a: Int): Array[Byte] =
+      ByteBuffer.allocate(Integer.BYTES).putInt(a).array
+
+    override def from(bytes: Array[Byte]): Int =
+      ByteBuffer.wrap(bytes).getInt
   }
 
   def asSerializable[A <: Serializable]: Bytes[A] = new Bytes[A] {

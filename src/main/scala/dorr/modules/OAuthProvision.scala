@@ -15,9 +15,8 @@ class OAuthProvision[F[_]: Routed: Functor] extends Provision[F, SessionData] {
     Routed[F].request map { req =>
       val csrfBearer = req.headerMap.get(bearerHeader)
       val sessionId = req.cookies.get(Authenticate.sessionId).map(_.value)
-      val csrfToken = req.cookies.get(Authenticate.csrfBearer).map(_.value)
 
-      (sessionId, csrfToken, csrfBearer) mapN SessionData.apply
+      (sessionId, csrfBearer) mapN SessionData.apply
     }
   }
 }

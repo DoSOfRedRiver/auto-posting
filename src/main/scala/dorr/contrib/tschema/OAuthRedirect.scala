@@ -24,6 +24,7 @@ object OAuthRedirect {
       val redirectResponse = p map { case (uri, state) =>
         val response = Response(status)
         response.headerMap.set("Location", uri.toString)
+        response.headerMap.set("Cache-Control", "no-store")
         response.addCookie(new Cookie("state", state.trim))
         response
       }

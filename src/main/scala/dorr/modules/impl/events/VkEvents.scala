@@ -4,7 +4,6 @@ import cats.Monad
 import cats.instances.list._
 import cats.syntax.all._
 import com.google.gson.JsonObject
-import com.vk.api.sdk.client.VkApiClient
 import com.vk.api.sdk.objects.callback.longpoll.responses.GetLongPollEventsResponse
 import dorr.modules.dsl.{Event, Events}
 import dorr.util.storage.Storage
@@ -13,7 +12,7 @@ import logstage.LogIO
 
 import scala.jdk.CollectionConverters._
 
-class VkEvents[F[_] : Monad : VkApi : LogIO : Storage[*[_], Int]](client: VkApiClient) extends Events[F] {
+class VkEvents[F[_] : Monad : VkApi : LogIO : Storage[*[_], Int]] extends Events[F] {
 
   def currentTs(newTs: Int): F[Int] =
     Storage[F, Int].get("ts").map(_.getOrElse(newTs))

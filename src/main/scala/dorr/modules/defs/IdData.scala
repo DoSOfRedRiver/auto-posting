@@ -1,6 +1,11 @@
 package dorr.modules.defs
 
-case class IdData(userId: Long, providerToken: String, provider: String, expiresIn: Long)
+case class IdData(
+  externalId: Long,
+  providerToken: String,
+  provider: String,
+  expiresIn: Long
+)
 
 object IdData {
   //TODO could be derived automatically

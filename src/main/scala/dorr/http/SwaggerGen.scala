@@ -26,7 +26,7 @@ class SwaggerGen[H[_]: RoutedPlus: Monad](rts: Routes) {
 
   val resources = Scheduler.io()
 
-  val routes = List(MkSwagger(auth), MkSwagger(upload), MkSwagger(status)).combineAll
+  val routes = List(MkSwagger(auth), MkSwagger(secured)).combineAll
   val descriptions =
     PathDescription.utf8I18n("swagger", Locale.forLanguageTag("ru"))
 
@@ -38,7 +38,6 @@ class SwaggerGen[H[_]: RoutedPlus: Monad](rts: Routes) {
     Routed.checkPath[H, Response]("/swagger.json", response.pure[H])
 
   val swaggerHttp: H[Response] = {
-
     val response = message.stringResponse(SwaggerIndex("/swagger.json", "/webjars"))
     response.setContentType("text/html(UTF-8)")
     Routed.checkPath[H, Response]("/swagger", response.pure[H])

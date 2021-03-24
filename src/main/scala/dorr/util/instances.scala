@@ -1,6 +1,7 @@
 package dorr.util
 
 import java.nio.ByteBuffer
+import java.nio.channels.SeekableByteChannel
 import java.nio.file.{Files, Path, StandardOpenOption}
 import java.time.{Instant, LocalDateTime}
 
@@ -16,6 +17,16 @@ object instances {
   }
 
   implicit def syncFile[F[_]: Sync]: File[F] =  new File[F] {
+    override def read(path: Path): F[SeekableByteChannel] = {
+      Sync[F].delay {
+        Files.newByteChannel(path, StandardOpenOption.READ)
+      }
+    }
+
+    override def readAll(path: Path): F[Array[Byte]] = {
+      Sync[F].delay(Files.readAllBytes(path))
+    }
+
     override def write(path: Path, bytes: ByteBuffer): F[Unit] = {
       Sync[F].delay {
         val channel = Files.newByteChannel(path, StandardOpenOption.WRITE)

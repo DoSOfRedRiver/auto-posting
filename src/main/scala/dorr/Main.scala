@@ -2,8 +2,6 @@ package dorr
 
 import cats.Applicative
 import cats.effect.LiftIO
-import cats.syntax.flatMap._
-import cats.syntax.functor._
 import izumi.distage.model.effect.DIEffect
 import izumi.distage.plugins.PluginConfig
 import izumi.distage.roles

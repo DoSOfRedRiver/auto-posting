@@ -21,7 +21,9 @@ val misc = Seq(
   "org.rocksdb"         %   "rocksdbjni"        % "6.5.3",
   "org.apache.commons"  %   "commons-lang3"     % "3.10",
 
-  "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
+  "org.scalatest"   %% "scalatest"  % "3.2.0"     % Test,
+  "org.scalacheck"  %% "scalacheck" % "1.14.1"    % Test,
 )
 
 val typedSchema = List(

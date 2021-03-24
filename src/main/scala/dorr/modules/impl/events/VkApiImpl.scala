@@ -2,8 +2,8 @@ package dorr.modules.impl.events
 
 import cats.effect.Sync
 import cats.syntax.all._
-import com.vk.api.sdk.client.{VkApiClient, actors}
-import com.vk.api.sdk.client.actors.{GroupActor, ServiceActor, UserActor}
+import com.vk.api.sdk.client.VkApiClient
+import com.vk.api.sdk.client.actors.{GroupActor, UserActor}
 import com.vk.api.sdk.objects.enums.WallFilter
 import com.vk.api.sdk.objects.wall.responses.GetResponse
 import dorr.Configuration.Config

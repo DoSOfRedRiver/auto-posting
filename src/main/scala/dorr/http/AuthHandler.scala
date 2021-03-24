@@ -36,6 +36,4 @@ class AuthHandler[H[_]: Routed: LogIO: Monad, F[_]: AuthManager: GenRandom: IdPr
         Routed[H].reject(Rejection.unauthorized)
     }
   }
-
-  def success: H[String] = "Success".pure[H]
 }

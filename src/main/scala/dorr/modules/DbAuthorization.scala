@@ -20,6 +20,7 @@ class DbAuthorization[H[_]: Routed, F[_]: AuthManager: Functor](implicit Lift: L
 
   override def apply(s: Option[SessionData]): H[To] = s match {
     case Some(sessionData) =>
+      //TODO sessionId or userId?
       Lift(AuthManager[F].authorize(sessionData) map To)
     case None =>
       reject

@@ -23,20 +23,22 @@ class RocksStorage[F[_]: Sync](rocksDB: RocksDB) extends Storage[F, Array[Byte]]
 object RocksStorage {
   import dorr.util.Bytes.ops._
 
-  class RocksGen[F[_]: Storage[*[_], Array[Byte]]: Functor, A: Bytes] extends Storage[F, A] {
-    override def put(key: String, value: A) =
-      Storage[F, Array[Byte]].put(key, value.toBytes)
-
-    override def get(key: String) =
-      Storage[F, Array[Byte]].get(key).mapT(Bytes[A].from)
+  class RocksGen[A](bytes: Bytes[A]) {
+    def create[F[_]]: (Storage[F, Array[Byte]], Functor[F]) => RocksGenApplied[F, A] = {
+      (storage, F) => new RocksGenApplied[F, A]()(storage, F, bytes)
+    }
   }
 
-  class Impl[F[_]: RocksStorage: Functor, A: Bytes](F: Functor[F], rocks: RocksStorage[F]) extends Storage[F, A] {
-    override def put(key: String, value: A) =
-      rocks.put(key, value.toBytes)
+  object RocksGen {
+    def apply[A](bytes: Bytes [A]) = new RocksGen[A](bytes)
+  }
 
-    override def get(key: String) =
-      rocks.get(key).mapT(Bytes[A].from)
+  class RocksGenApplied[F[_]: Storage[*[_], Array[Byte]]: Functor, A: Bytes] extends Storage[F, A] {
+    override def put(key: String, value: A): F[Unit] =
+      Storage[F, Array[Byte]].put(key, value.toBytes)
+
+    override def get(key: String): F[Option[A]] =
+      Storage[F, Array[Byte]].get(key).mapT(Bytes[A].from)
   }
 
   def apply[F[_]](implicit ev: RocksStorage[F]): RocksStorage[F] = ev

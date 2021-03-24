@@ -15,11 +15,10 @@ import tofu.BracketThrow
 import tofu.syntax.monadic._
 
 class VkIdProvider[F[_] : HttpClient : Functor : BracketThrow](config: Config) extends IdProvider[F] {
+  implicit val circeConf: Configuration = Configuration.default.withSnakeCaseMemberNames
+  implicit val responseDecoder: Decoder[Response] = deriveConfiguredDecoder
 
   case class Response(accessToken: String, expiresIn: Long, userId: Long)
-
-  implicit val circeConf = Configuration.default.withSnakeCaseMemberNames
-  implicit val audioDecoder: Decoder[IdData] = deriveConfiguredDecoder
 
   override def auth(code: Code): F[IdData] = {
     val params = Seq(
@@ -32,9 +31,10 @@ class VkIdProvider[F[_] : HttpClient : Functor : BracketThrow](config: Config) e
     for {
       response <- HttpClient[F].https("oauth.vk.com", "/access_token", params: _*)
       authData <- MonadError[F, Throwable]
-        .fromEither(decode[IdData](response))
+        .fromEither(decode[Response](response))
+        .map(resp => IdData(resp.userId, resp.accessToken, "vk", resp.expiresIn))
         .adaptError(new IllegalStateException(
-          "Could not parse IdP response, possibly bad configuration provided",
+          s"Could not parse IdP response, possibly bad configuration provided for:\n $response" ,
           _
         ))
     } yield authData
