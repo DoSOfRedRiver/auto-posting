@@ -18,16 +18,17 @@ object OAuthRedirect {
 
   //TODO make cookies secure
   implicit def redirect[H[_]: Monad, F[_]: Applicative](
-    implicit LH: LiftHttp[H, F]
+    implicit Lift: LiftHttp[H, F]
   ): Completing[H, OAuthRedirect, F[RedirectParams]] = {
     p =>
       val redirectResponse = p map { case (uri, state) =>
         val response = Response(status)
         response.headerMap.set("Location", uri.toString)
+        response.headerMap.set("Cache-Control", "no-store")
         response.addCookie(new Cookie("state", state.trim))
         response
       }
-      LH(redirectResponse)
+      Lift(redirectResponse)
   }
 
   implicit val swaggerResult: MkSwagger[Complete[OAuthRedirect]] =

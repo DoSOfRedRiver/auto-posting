@@ -1,17 +1,32 @@
 package dorr.util
 
 import java.nio.ByteBuffer
+import java.nio.channels.SeekableByteChannel
 import java.nio.file.{Files, Path, StandardOpenOption}
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime}
 
 import cats.effect.Sync
 
 object instances {
   implicit def syncTime[F[_]: Sync]: Time[F] = new Time[F] {
-    override def now: F[LocalDateTime] = Sync[F].delay(LocalDateTime.now())
+    override def now: F[LocalDateTime] =
+      Sync[F].delay(LocalDateTime.now())
+
+    override def instant: F[Instant] =
+      Sync[F].delay(Instant.now())
   }
 
   implicit def syncFile[F[_]: Sync]: File[F] =  new File[F] {
+    override def read(path: Path): F[SeekableByteChannel] = {
+      Sync[F].delay {
+        Files.newByteChannel(path, StandardOpenOption.READ)
+      }
+    }
+
+    override def readAll(path: Path): F[Array[Byte]] = {
+      Sync[F].delay(Files.readAllBytes(path))
+    }
+
     override def write(path: Path, bytes: ByteBuffer): F[Unit] = {
       Sync[F].delay {
         val channel = Files.newByteChannel(path, StandardOpenOption.WRITE)

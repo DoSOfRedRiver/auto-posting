@@ -18,10 +18,10 @@ object Redirect {
   val status: Status = Status.MovedPermanently
 
   implicit def redirect[H[_], F[_] : Functor](
-    implicit LH: LiftHttp[H, F]
+    implicit Lift: LiftHttp[H, F]
   ): Completing[H, Redirect, F[URI]] = {
     c =>
-      LH(c map { uri =>
+      Lift(c map { uri =>
         val response = Response(status)
         response.headerMap.set("Location", uri.toString)
         response

@@ -1,9 +1,11 @@
 package dorr.util
 
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime}
 
 trait Time[F[_]] {
   def now: F[LocalDateTime]
+
+  def instant: F[Instant]
 }
 
 object Time {

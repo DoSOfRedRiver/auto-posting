@@ -14,14 +14,15 @@ val misc = Seq(
   "com.chuusai"         %%  "shapeless"         % "2.3.3",
   "ru.tinkoff"          %%  "tofu"              % "0.7.3",
   "ru.tinkoff"          %%  "tofu-optics-macro" % "0.7.3",
-  "com.lihaoyi"         %%  "scalatags"         % "0.9.1",
   "org.manatki"         %%  "derevo-circe"      % "0.11.4",
 
   "com.vk.api"          %   "sdk"               % "1.0.6",
   "org.rocksdb"         %   "rocksdbjni"        % "6.5.3",
   "org.apache.commons"  %   "commons-lang3"     % "3.10",
 
-  "org.scalatest"   %% "scalatest"          % "3.1.0"     % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
+  "org.scalatest"   %% "scalatest"  % "3.2.0"     % Test,
+  "org.scalacheck"  %% "scalacheck" % "1.14.1"    % Test,
 )
 
 val typedSchema = List(
@@ -53,6 +54,8 @@ libraryDependencies ++= misc ++ circe ++ izumi ++ typedSchema
 scalacOptions += "-Ymacro-annotations"
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 
-lazy val runServer = taskKey[Unit]("A custom run task.")
+
+lazy val runServer = taskKey[Unit]("Run posting server")
 fullRunTask(runServer, Runtime, "dorr.Main", Array("-u", ":publisher"): _*)
