@@ -1,0 +1,13 @@
+{
+  "name": "auto-posting",
+  "version": "0.0.1",
+  "scripts": {
+    "compile-typescript": "tsc"
+  },
+  "devDependencies": {
+    "@types/chai": "4.2.15",
+    "@types/chai-as-promised": "7.1.3",
+    "@types/mocha": "8.2.2",
+    "typescript": "4.2.3"
+  }
+}
